@@ -1,6 +1,20 @@
 {
   "app": {
-    "signingConfigs": [],
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\nkException\\.ohos\\config\\default_sakura_Qir2JhvdRsjh6KNWBhN68K1TUul37lmTacgPWkieBYg=.cer",
+          "storePassword": "0000001A2BA3885CA3B98964D031A3A05065CE9CA5FB3340411DA6D89916008A7D0C585D11408E99DD58",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001A9FDF6F6BFAF3D2F80906CDE51B7D32942F3DACB6E9409BEBBCABF4221F54078883D316DA62FF",
+          "profile": "C:\\Users\\nkException\\.ohos\\config\\default_sakura_Qir2JhvdRsjh6KNWBhN68K1TUul37lmTacgPWkieBYg=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\nkException\\.ohos\\config\\default_sakura_Qir2JhvdRsjh6KNWBhN68K1TUul37lmTacgPWkieBYg=.p12"
+        }
+      }
+    ],
     "products": [
       {
         "name": "default",

@@ -1,11 +1,13 @@
-import { util } from '@kit.ArkTS'
-import CONSTANTS from '../common/Constants'
 import { AnalysisWebUtil } from '../utils/AnalysisWebUilt'
 import BasicDataSource from '../model/BasicDataSource'
 import ZPVideoClass from '../model/ZPVideoClass'
 import VideoDescription from '../components/VideoDescription'
 import { AvoidRect } from '../types'
 import { inputMethod } from '@kit.IMEKit'
+import LoadMore from '../components/LoadMore'
+import Loading from '../components/Loading'
+import Empty from '../components/Empty'
+import CONSTANTS from '../common/Constants'
 
 @Entry
 @Component
@@ -13,10 +15,14 @@ struct Index {
   @State text: string = ""
   @State activeIndex: number = 0
   @State showRst: boolean = false
+  @State loading: boolean = true
+  @State total: number = 0
+  @State ended: boolean = false
   @StorageProp("rect") rect: AvoidRect = { topHeight: 0, bottomHeight: 0 }
   private swiperCtrl: SwiperController = new SwiperController()
   private searchRst: BasicDataSource<ZPVideoClass> = new BasicDataSource([])
-  private searchPath: string[] = ["zkk79", "yhdm60"]
+  private searchPath: string[] = ["zkk79"]
+  private currentPage: number = 1
 
   @Builder
   builderPath(name: string, index: number) {
@@ -38,79 +44,121 @@ struct Index {
       })
   }
 
+  loadMore() {
+    if (this.loading || this.ended) {
+      return
+    }
+    AnalysisWebUtil.zkk79.searchPage(this.text, ++this.currentPage).then(list => {
+      this.searchRst.data = this.searchRst.data.concat(list)
+      this.total += list.length
+      if (list.length < CONSTANTS.ZKK79_PAGESIZE) {
+        this.ended = true
+      }
+      this.searchRst.reloadData()
+    })
+  }
+
+  onClickSearchButton() {
+    inputMethod.getController().stopInputSession()
+    if (!this.showRst) {
+      animateTo({ duration: 300 }, () => {
+        this.showRst = true
+      })
+    }
+    this.search()
+  }
+
+  async search() {
+    this.ended = false
+    this.loading = true
+    this.total = 0
+    this.currentPage = 1
+    const list = await AnalysisWebUtil.zkk79.searchPage(this.text, this.currentPage)
+    this.searchRst.data = list
+    this.total = list.length
+    if (this.total < CONSTANTS.ZKK79_PAGESIZE) {
+      this.ended = true
+    }
+    this.searchRst.reloadData()
+    this.loading = false
+  }
+
   build() {
     Column() {
       Row() {
         TextInput({ text: $$this.text, placeholder: "请输入关键词" })
           .layoutWeight(1)
-        Button("搜索").onClick(async () => {
-          inputMethod.getController().stopInputSession()
-          if (!this.showRst) {
-            animateTo({ duration: 500 }, () => {
-              this.showRst = true
-            })
-          }
-          const list =
-            await AnalysisWebUtil.zkk79.searchPage(util.format(CONSTANTS.ZKK79_HOST + CONSTANTS.ZKK79_SEARCH_FORMAT,
-              this.text, 1))
-          this.searchRst.data = list
-          this.searchRst.reloadData()
-        })
+          .cancelButton({
+            style: CancelButtonStyle.INPUT
+          })
+          .enterKeyType(EnterKeyType.Search)
+          .onSubmit(() => this.onClickSearchButton())
+        Button("搜索").onClick(() => this.onClickSearchButton())
       }
       .width("100%")
 
       if (this.showRst) {
-        Row() {
-          Text("搜索路径：")
-            .fontSize($r("app.float.default_font_size"))
-          List() {
-            ForEach(this.searchPath, (item: string, index) => {
-              this.builderPath(item, index)
-            })
-          }
-          .scrollBar(BarState.Off)
-          .listDirection(Axis.Horizontal)
-          .layoutWeight(1)
-        }
-        .margin({ bottom: 10 })
-        .height(30)
-
-        Swiper(this.swiperCtrl) {
-          List({ space: 10 }) {
-            LazyForEach(this.searchRst, (item: ZPVideoClass) => {
-              VideoDescription({
-                info: item
+        Column() {
+          Row() {
+            Text("搜索路径：")
+              .fontSize($r("app.float.default_font_size"))
+            List() {
+              ForEach(this.searchPath, (item: string, index) => {
+                this.builderPath(item, index)
               })
-            }, (item: ZPVideoClass) => item.id.toString())
+            }
+            .scrollBar(BarState.Off)
+            .listDirection(Axis.Horizontal)
+            .layoutWeight(1)
           }
-          .divider({
-            strokeWidth: "1px",
-            color: $r("app.color.disabled_button_background")
+          .margin({ bottom: 10 })
+          .height(30)
+
+          Swiper(this.swiperCtrl) {
+            List({ space: 10 }) {
+              LazyForEach(this.searchRst, (item: ZPVideoClass) => {
+                ListItem() {
+                  VideoDescription({
+                    info: item
+                  })
+                }
+              }, (item: ZPVideoClass) => item.id.toString())
+              if (this.total !== 0) {
+                ListItem() {
+                  LoadMore({ ended: this.ended }) {
+                    Row()
+                      .height(this.rect.bottomHeight)
+                      .backgroundColor(Color.Transparent)
+                  }
+                }
+              }
+            }
+            .divider({
+              strokeWidth: "1px",
+              color: $r("app.color.disabled_button_background")
+            })
+            .onReachEnd(() => this.loadMore())
+            .edgeEffect(EdgeEffect.None)
+            .scrollBar(BarState.Off)
+            .height("100%")
+            .width("100%")
+          }
+          .onChange(index => {
+            this.activeIndex = index
           })
-          .edgeEffect(EdgeEffect.None)
-          .scrollBar(BarState.Off)
-          .height("100%")
-          .width("100%")
+          .indicator(false)
+          .layoutWeight(1)
 
-          List() {
-
-          }
-          .padding(10)
-          .edgeEffect(EdgeEffect.None)
-          .scrollBar(BarState.Off)
-          .width("100%")
-          .height("100%")
+          Empty({ visible: this.total === 0 })
+          Loading({ loading: this.loading })
         }
-        .onChange(index => {
-          this.activeIndex = index
-        })
-        .indicator(false)
+        .transition(TransitionEffect.move(TransitionEdge.BOTTOM).animation({ duration: 300 }))
         .layoutWeight(1)
+        .width("100%")
       }
     }
     .padding({
       top: this.rect.topHeight,
-      bottom: this.rect.bottomHeight,
       right: 10,
       left: 10
     })
@@ -121,7 +169,7 @@ struct Index {
 
   onBackPress(): boolean | void {
     if (this.showRst) {
-      animateTo({ duration: 500 }, () => {
+      animateTo({ duration: 300 }, () => {
         this.showRst = false
       })
       return true

@@ -1,8 +1,10 @@
+/** 避让区域接口 */
 export interface AvoidRect {
   topHeight: number
   bottomHeight: number
 }
 
+/** zkk79 预览视频信息接口 */
 export interface ZPVideo {
   id: number
   title: string
@@ -16,42 +18,23 @@ export interface ZPVideo {
   badge: string
 }
 
-export interface YPVideo {
-  id: number
-  title: string
-  alias?: string
-  preview: string
-  star: string
-  area: string
-  time: string
-  badge: string
-}
-
+/** zkk79 详细视频信息接口 */
 export interface ZDVideo {
   id: number
   list: VideoSrc[]
 }
 
+/** 视频源 */
 export interface VideoSrc {
   name: string
   episodes?: Episode[]
 }
 
+/** 视频每一集信息 */
 export interface Episode {
   name: string
   videoUrl?: string
   pathUrl?: string
-}
-
-export interface YHVideoSrc {
-  name_zh: string
-  name_en: string
-  episodes?: string[]
-}
-
-export interface YDVideo {
-  summary: string
-  type: string
 }
 
 type HTMLInner = Tag | string

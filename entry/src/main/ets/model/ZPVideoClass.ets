@@ -1,3 +1,6 @@
+/**
+ * zkk79 预览视频
+ */
 @Observed
 export default class ZPVideoClass {
   id: number

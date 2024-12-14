@@ -1,36 +1,30 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import HTML from '../model/HTML'
 import PromptException from '../model/PromptException'
-import { Episode, EpisodeInfo, Tag, VideoSrc, YDVideo, YHVideoSrc, ZDVideo, ZPVideo } from '../types'
+import { Episode, EpisodeInfo, Tag, VideoSrc, ZDVideo, ZPVideo } from '../types'
 import { buffer, util } from '@kit.ArkTS'
 import CryptoJS from "@ohos/crypto-js"
 import { http } from '@kit.NetworkKit'
 import ZPVideoClass from '../model/ZPVideoClass'
 import CONSTANTS from '../common/Constants'
-import YPVideoClass from '../model/YPVideoClass'
 
 const _HTML = new HTML()
 const _http = http.createHttp()
 const token_key = buffer.from("57A891D97E332A9D")
-const YHSrcMap: Record<string, string> = {
-  "": "主线",
-  "kb": "酷播",
-  "ff": "飞飞",
-  "lz": "良子",
-  "bd": "百百",
-  "sn": "新朗",
-  "fs": "F速",
-  "uk": "U酷",
-  "hn": "牛牛",
-  "wj": "无天"
-}
 
 export namespace AnalysisWebUtil {
   export class zkk79 {
-    static async searchPage(url: string): Promise<ZPVideo[]> {
+    /**
+     * zkk79搜索接口
+     * @param key 搜索关键字
+     * @param page 页数
+     * @returns 搜索结果列表
+     */
+    static async searchPage(key: string, page: number = 1): Promise<ZPVideo[]> {
       const list: ZPVideoClass[] = []
       try {
-        const html = (await _http.request(url)).result! as string
+        const html = (await _http.request(util.format(CONSTANTS.ZKK79_HOST + CONSTANTS.ZKK79_SEARCH_FORMAT, key,
+          page))).result! as string
         const useful = html.match(/<li class="clearfix">[\s\S]*?<\/li>/g)!
         for (let item of useful) {
           const thumb = item.match(/<div class="thumb">[\s\S]*?<\/div>/)![0]
@@ -49,7 +43,7 @@ export namespace AnalysisWebUtil {
         }
       } catch (err) {
         hilog.error(0x0000, "zkk79.searchPage", "%{public}s:\n%{public}s", (err as Error).message, (err as Error).stack)
-        throw new PromptException(-10001, "网址解析出错")
+        return []
       }
       return list
     }
@@ -126,94 +120,6 @@ export namespace AnalysisWebUtil {
         currentVideoUrl: videoUrl,
         nextPathUrl: nextPathUrl
       }
-    }
-  }
-
-  export class yhdm60 {
-    static async queryList(query: string) {
-      const list: YPVideoClass[] = []
-      try {
-        const result = await _http.request(util.format(CONSTANTS.YHDM60_QUERY_FORMAT, query))
-        const rst = JSON.parse(result.result as string) as object
-        const id: number = Number(rst["url"].match(/\/\d+\//)[0].slice(1, -1))
-        list.push(new YPVideoClass(id, rst["title"], rst["thumb"], rst["star"], rst["area"], rst["time"],
-          rst["lianzaijs"]))
-      } catch (err) {
-        hilog.error(0x0000, "yhdm60.queryList", "%{public}s:\n%{public}s", (err as Error).message, (err as Error).stack)
-      }
-      return list
-    }
-
-    static async detail(id: number) {
-      try {
-        const html = (await _http.request(util.format(CONSTANTS.YHDM60_DETAIL_FORMAT, id))).result as string
-        const summary = _HTML.parse(html.match(/<div class="des2">[\s\S]*?<\/div>/)![0])!.content![2] as string
-        const ct = _HTML.parse(html.match(/<dd>\s*\n\s*<b>类型：[\s\S]*?<\/dd>/)![0])!.content! as Tag[]
-        const type: string[] = []
-        for (let i = 0; i < ct.length; i++) {
-          if (i > 0) {
-            type.push(ct[i].content![0] as string)
-          }
-        }
-        return {
-          summary: summary,
-          type: type.join(",")
-        } as YDVideo
-      } catch (err) {
-        hilog.error(0x0000, "yhdm60.detail", "%{public}s:\n%{public}s", (err as Error).message, (err as Error).stack)
-        throw new PromptException(-10001, "网址解析出错")
-      }
-    }
-
-    static async videoSrc(id: number) {
-      const src: YHVideoSrc[] = []
-      try {
-        const epiJS = (await _http.request(util.format(CONSTANTS.YHDM_EPISODE_FORMAT, id))).result as string
-        let previous: YHVideoSrc | undefined
-        for (let i = 0; i + 7 <= epiJS.length; i++) {
-          if (epiJS.slice(i, i + 7) === "playarr") {
-            i += 7
-            let nameEN = ""
-            while (epiJS[i] !== "[") {
-              if (epiJS[i] === "\n") {
-                break
-              }
-              if (epiJS[i] !== "_") {
-                nameEN += epiJS[i]
-              }
-              i++
-            }
-            if (epiJS[i] === "\n") {
-              continue
-            }
-            while (epiJS[i] !== "\"" && epiJS[i] !== "\'") {
-              i++
-            }
-            i++
-            let url = ""
-            while (epiJS[i] !== "\"" && epiJS[i] !== "\'") {
-              url += epiJS[i]
-              i++
-            }
-            const param = url.split(",")
-
-            if (nameEN !== previous?.name_en) {
-              if (previous) {
-                src.push(previous)
-              }
-              previous = {
-                name_zh: YHSrcMap[nameEN],
-                name_en: nameEN,
-                episodes: []
-              }
-            }
-            previous.episodes![Number(param[2]) - 1] = param[0]
-          }
-        }
-      } catch (err) {
-        hilog.error(0x0000, "yhdm60.videoSrc", "%{public}s:\n%{public}s", (err as Error).message, (err as Error).stack)
-      }
-      return src
     }
   }
 }
