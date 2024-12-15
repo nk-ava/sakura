@@ -8,6 +8,8 @@ import LoadMore from '../components/LoadMore'
 import Loading from '../components/Loading'
 import Empty from '../components/Empty'
 import CONSTANTS from '../common/Constants'
+import { throttle } from '../utils/JsUtil'
+import { router } from '@kit.ArkUI'
 
 @Entry
 @Component
@@ -18,11 +20,13 @@ struct Index {
   @State loading: boolean = true
   @State total: number = 0
   @State ended: boolean = false
+  @State scrollOffset: number = 0
   @StorageProp("rect") rect: AvoidRect = { topHeight: 0, bottomHeight: 0 }
   private swiperCtrl: SwiperController = new SwiperController()
   private searchRst: BasicDataSource<ZPVideoClass> = new BasicDataSource([])
   private searchPath: string[] = ["zkk79"]
   private currentPage: number = 1
+  private listScr: ListScroller = new ListScroller()
 
   @Builder
   builderPath(name: string, index: number) {
@@ -44,6 +48,29 @@ struct Index {
       })
   }
 
+  @Builder
+  buildMenu() {
+    Menu() {
+      MenuItem({
+        content: "下载中心",
+        startIcon: $r("app.media.share")
+      })
+        .onClick(() => {
+          router.pushUrl({
+            url: "pages/DownloadCenter"
+          })
+        })
+      MenuItem({
+        content: "设置",
+        startIcon: $r("app.media.share")
+      })
+      MenuItem({
+        content: "关于",
+        startIcon: $r("app.media.share")
+      })
+    }
+  }
+
   loadMore() {
     if (this.loading || this.ended) {
       return
@@ -59,7 +86,8 @@ struct Index {
   }
 
   onClickSearchButton() {
-    inputMethod.getController().stopInputSession()
+    inputMethod.getController().stopInputSession((err) => {
+    })
     if (!this.showRst) {
       animateTo({ duration: 300 }, () => {
         this.showRst = true
@@ -69,6 +97,7 @@ struct Index {
   }
 
   async search() {
+    this.listScr.scrollTo({ yOffset: 0, xOffset: 0 })
     this.ended = false
     this.loading = true
     this.total = 0
@@ -85,6 +114,20 @@ struct Index {
 
   build() {
     Column() {
+      // 首页菜单
+      Row() {
+        Image($r("app.media.user_dark"))
+          .width(40)
+          .aspectRatio(1)
+          .bindMenu(this.buildMenu)
+      }
+      .visibility(this.showRst ? Visibility.Hidden : Visibility.Visible)
+      .position({
+        top: 0
+      })
+      .justifyContent(FlexAlign.End)
+      .width("100%")
+
       Row() {
         TextInput({ text: $$this.text, placeholder: "请输入关键词" })
           .layoutWeight(1)
@@ -112,10 +155,11 @@ struct Index {
             .layoutWeight(1)
           }
           .margin({ bottom: 10 })
-          .height(30)
+          .height(this.scrollOffset > 0 ? 0 : 30)
+          .animation({ duration: 150 })
 
           Swiper(this.swiperCtrl) {
-            List({ space: 10 }) {
+            List({ space: 10, scroller: this.listScr }) {
               LazyForEach(this.searchRst, (item: ZPVideoClass) => {
                 ListItem() {
                   VideoDescription({
@@ -133,6 +177,12 @@ struct Index {
                 }
               }
             }
+            .onDidScroll(throttle(() => {
+              this.scrollOffset = this.listScr.currentOffset().yOffset
+            }))
+            .onReachStart(() => [
+              this.scrollOffset = 0
+            ])
             .divider({
               strokeWidth: "1px",
               color: $r("app.color.disabled_button_background")

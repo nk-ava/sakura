@@ -1,6 +1,7 @@
 {
   "src": [
     "pages/Index",
-    "pages/VideoPlay"
+    "pages/VideoPlay",
+    "pages/DownloadCenter"
   ]
 }
