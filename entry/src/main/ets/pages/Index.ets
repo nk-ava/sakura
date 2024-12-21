@@ -10,6 +10,7 @@ import Empty from '../components/Empty'
 import CONSTANTS from '../common/Constants'
 import { throttle } from '../utils/JsUtil'
 import { router } from '@kit.ArkUI'
+import { buildSettingView } from '../view/SettingView'
 
 @Entry
 @Component
@@ -21,6 +22,7 @@ struct Index {
   @State total: number = 0
   @State ended: boolean = false
   @State scrollOffset: number = 0
+  @State showSetting: boolean = false
   @StorageProp("rect") rect: AvoidRect = { topHeight: 0, bottomHeight: 0 }
   private swiperCtrl: SwiperController = new SwiperController()
   private searchRst: BasicDataSource<ZPVideoClass> = new BasicDataSource([])
@@ -64,10 +66,18 @@ struct Index {
         content: "设置",
         startIcon: $r("app.media.share")
       })
+        .onClick(() => {
+          this.showSetting = true
+        })
       MenuItem({
         content: "关于",
         startIcon: $r("app.media.share")
       })
+        .onClick(() => {
+          router.pushUrl({
+            url: "pages/About"
+          })
+        })
     }
   }
 
@@ -207,6 +217,13 @@ struct Index {
         .width("100%")
       }
     }
+    .bindSheet($$this.showSetting, buildSettingView(), {
+      width: "100%",
+      height: "100%",
+      title: {
+        title: "设置"
+      }
+    })
     .padding({
       top: this.rect.topHeight,
       right: 10,

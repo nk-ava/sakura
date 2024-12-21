@@ -342,7 +342,7 @@ struct VideoPlay {
             }
             .padding({ left: 10, right: 10 })
             .backgroundColor(Color.White)
-            .transition(TransitionEffect.move(TransitionEdge.BOTTOM).animation({ duration: 500 }))
+            .transition(TransitionEffect.move(TransitionEdge.BOTTOM).animation({ duration: 300 }))
             .width("100%")
             .height("100%")
           }
