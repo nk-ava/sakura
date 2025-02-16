@@ -1,5 +1,6 @@
 import DownloadInfo from '../components/DownloadInfo'
 import Loading from '../components/Loading'
+import SakuraList from '../components/SakuraList'
 import BasicDataSource from '../model/BasicDataSource'
 import DownloadInfoClass from '../model/DownloadInfoClass'
 import DownloadManager from '../model/DownloadManager'
@@ -58,7 +59,7 @@ struct DownloadCenter {
       .justifyContent(FlexAlign.Center)
       .width("100%")
 
-      List() {
+      SakuraList({ showLoadMore: true }) {
         LazyForEach(this.taskList, (task: DownloadInfoClass) => {
           ListItem() {
             DownloadInfo({
@@ -67,8 +68,6 @@ struct DownloadCenter {
           }
         })
       }
-      .width("100%")
-      .layoutWeight(1)
 
       Loading({
         loading: this.loading

@@ -62,3 +62,5 @@ export interface VideoSize {
   width: number;
   height: number;
 }
+
+export type NonNull = number | string | boolean | object

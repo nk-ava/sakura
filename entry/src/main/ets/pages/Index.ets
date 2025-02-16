@@ -4,13 +4,12 @@ import ZPVideoClass from '../model/ZPVideoClass'
 import VideoDescription from '../components/VideoDescription'
 import { AvoidRect } from '../types'
 import { inputMethod } from '@kit.IMEKit'
-import LoadMore from '../components/LoadMore'
 import Loading from '../components/Loading'
 import Empty from '../components/Empty'
 import CONSTANTS from '../common/Constants'
-import { throttle } from '../utils/JsUtil'
 import { router } from '@kit.ArkUI'
 import { buildSettingView } from '../view/SettingView'
+import SakuraList from '../components/SakuraList'
 
 @Entry
 @Component
@@ -21,7 +20,7 @@ struct Index {
   @State loading: boolean = true
   @State total: number = 0
   @State ended: boolean = false
-  @State scrollOffset: number = 0
+  @State scrollOffset: OffsetResult = { yOffset: 0, xOffset: 0 }
   @State showSetting: boolean = false
   @StorageProp("rect") rect: AvoidRect = { topHeight: 0, bottomHeight: 0 }
   private swiperCtrl: SwiperController = new SwiperController()
@@ -106,11 +105,10 @@ struct Index {
     this.search()
   }
 
-  async search() {
+  async search(needLoading: boolean = true) {
     this.listScr.scrollTo({ yOffset: 0, xOffset: 0 })
     this.ended = false
-    this.loading = true
-    this.total = 0
+    needLoading && (this.loading = true)
     this.currentPage = 1
     const list = await AnalysisWebUtil.zkk79.searchPage(this.text, this.currentPage)
     this.searchRst.data = list
@@ -119,7 +117,7 @@ struct Index {
       this.ended = true
     }
     this.searchRst.reloadData()
-    this.loading = false
+    needLoading && (this.loading = false)
   }
 
   build() {
@@ -133,8 +131,10 @@ struct Index {
       }
       .visibility(this.showRst ? Visibility.Hidden : Visibility.Visible)
       .position({
-        top: 0
+        top: 0,
+        left: 0
       })
+      .padding({ top: 10 })
       .justifyContent(FlexAlign.End)
       .width("100%")
 
@@ -165,11 +165,23 @@ struct Index {
             .layoutWeight(1)
           }
           .margin({ bottom: 10 })
-          .height(this.scrollOffset > 0 ? 0 : 30)
+          .height(this.scrollOffset.yOffset > 0 ? 0 : 30)
           .animation({ duration: 150 })
 
           Swiper(this.swiperCtrl) {
-            List({ space: 10, scroller: this.listScr }) {
+            SakuraList({
+              space: 10,
+              scroller: this.listScr,
+              ended: this.ended,
+              loadMore: () => {
+                this.loadMore()
+              },
+              refresh: (): Promise<void> => {
+                return this.search(false);
+              },
+              scrollerOffset: this.scrollOffset,
+              showLoadMore: this.total !== 0
+            }) {
               LazyForEach(this.searchRst, (item: ZPVideoClass) => {
                 ListItem() {
                   VideoDescription({
@@ -177,31 +189,7 @@ struct Index {
                   })
                 }
               }, (item: ZPVideoClass) => item.id.toString())
-              if (this.total !== 0) {
-                ListItem() {
-                  LoadMore({ ended: this.ended }) {
-                    Row()
-                      .height(this.rect.bottomHeight)
-                      .backgroundColor(Color.Transparent)
-                  }
-                }
-              }
             }
-            .onDidScroll(throttle(() => {
-              this.scrollOffset = this.listScr.currentOffset().yOffset
-            }))
-            .onReachStart(() => [
-              this.scrollOffset = 0
-            ])
-            .divider({
-              strokeWidth: "1px",
-              color: $r("app.color.disabled_button_background")
-            })
-            .onReachEnd(() => this.loadMore())
-            .edgeEffect(EdgeEffect.None)
-            .scrollBar(BarState.Off)
-            .height("100%")
-            .width("100%")
           }
           .onChange(index => {
             this.activeIndex = index
