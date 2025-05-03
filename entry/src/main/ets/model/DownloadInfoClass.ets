@@ -1,23 +1,26 @@
-import { util } from "@kit.ArkTS"
+import { DownloadTaskClass } from "./DownloadTaskClass"
 
 /**
  * 下载任务信息
  */
 @Observed
 export default class DownloadInfoClass {
-  id: string
-  status: 1 | 2 | 3
+  /* 预览图 */
   preview: string
-  filename: string
-  total: number
-  size: number
+  /* 来源 */
+  source: string
+  /* 资源Id */
+  sourceId: string
+  /* 番名 */
+  name: string
 
-  constructor(preview: string, filename: string, total: number, size: number) {
-    this.id = util.generateRandomUUID()
+  taskList: DownloadTaskClass[]
+
+  constructor(preview: string, source: string, sourceId: string, name: string, taskList: DownloadTaskClass[]) {
     this.preview = preview
-    this.status = 2
-    this.filename = filename
-    this.total = total
-    this.size = size
+    this.source = source
+    this.sourceId = sourceId
+    this.name = name
+    this.taskList = taskList
   }
 }

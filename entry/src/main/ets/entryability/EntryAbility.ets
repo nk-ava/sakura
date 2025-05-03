@@ -1,6 +1,6 @@
 import { AbilityConstant, errorManager, UIAbility, Want } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { window } from '@kit.ArkUI';
+import { promptAction, window } from '@kit.ArkUI';
 import { AvoidRect } from '../types';
 
 export default class EntryAbility extends UIAbility {
@@ -8,6 +8,13 @@ export default class EntryAbility extends UIAbility {
     errorManager.on("error", {
       onUnhandledException(errMsg) {
         hilog.error(0x0000, "unhandledException", errMsg)
+      },
+      onException(err: Error) {
+        if (err.name === 'prompt') {
+          promptAction.showToast({
+            message: err.message
+          })
+        }
       }
     })
     errorManager.on("unhandledRejection", (err: Error) => {

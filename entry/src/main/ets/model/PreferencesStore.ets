@@ -20,7 +20,7 @@ export class PreferencesStore {
     })
   }
 
-  get s() {
+  get s(): preferences.Preferences {
     return this.store
   }
 }

@@ -13,6 +13,7 @@ export default class ZPVideoClass {
   time: string
   summary: string
   badge: string
+  source: string = "zkk79"
 
   constructor(id: number, title: string, alias: string, preview: string, type: string, category: string, area: string,
     time: string, summary: string, badge: string) {

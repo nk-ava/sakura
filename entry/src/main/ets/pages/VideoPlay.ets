@@ -7,6 +7,9 @@ import CONSTANTS from '../common/Constants';
 import VideoPlayer from '../model/VideoPlayer';
 import { AvoidRect, Episode, VideoSize, ZDVideo } from '../types';
 import { TimeUtil } from '../utils/TimeUtil';
+import { getPreferences } from '../model/PreferencesStore';
+import PromptAbleException from '../model/PromptableException';
+import { DownloadTaskClass } from '../model/DownloadTaskClass';
 
 @Entry
 @Component
@@ -29,6 +32,7 @@ struct VideoPlay {
   private pInfo?: ZPVideoClass
   private player?: VideoPlayer
   private ctrl: XComponentController = new XComponentController()
+  private currentEpisode?: Episode
 
   async aboutToAppear() {
     const param = router.getParams()
@@ -62,6 +66,38 @@ struct VideoPlay {
     })
   }
 
+  addDownloadTask() {
+    if (!this.currentEpisode?.videoUrl) {
+      promptAction.showToast({ message: '正在加紧解析视频中，请稍后' })
+      return
+    }
+    const preference = getPreferences(getContext(), "download_task");
+    preference.s.getAll((err, all) => {
+      if (err) {
+        throw new PromptAbleException(-10002)
+      }
+      const taskList = Object.values(all) as DownloadTaskClass[]
+      if (taskList.findIndex(val => {
+        return val.source === this.pInfo!.source && val.sourceId === String(this.pInfo!.id) &&
+          val.srcName === this.currentEpisode?.name
+      }) === -1) {
+        const index = Object.keys(all)?.length || 0
+        preference.s.put(String(index),
+          new DownloadTaskClass(this.pInfo!.title, this.pInfo!.preview, this.pInfo!.source, this.pInfo!.id,
+            this.currentEpisode!.videoUrl, this.currentEpisode?.name || `第${this.episodeIndex + 1}集`))
+        preference.s.flush(() => {
+          promptAction.showToast({
+            message: "已加入下载任务"
+          })
+        })
+      } else {
+        promptAction.showToast({
+          message: "下载任务中已存在"
+        })
+      }
+    })
+  }
+
   async playVideo() {
     if (!this.initial) {
       promptAction.showToast({ message: "播放器还未初始化完成" })
@@ -70,18 +106,18 @@ struct VideoPlay {
     if (!this.player!.sfID) {
       this.player!.setSurfaceID(this.ctrl.getXComponentSurfaceId())
     }
-    const currentEpisode: Episode = this.episodes!.list[this.srcIndex].episodes![this.episodeIndex]
-    if (!currentEpisode.videoUrl) {
-      const rst = await AnalysisWebUtil.zkk79.playPage(currentEpisode.pathUrl ||
+    this.currentEpisode = this.episodes!.list[this.srcIndex].episodes![this.episodeIndex]
+    if (!this.currentEpisode.videoUrl) {
+      const rst = await AnalysisWebUtil.zkk79.playPage(this.currentEpisode.pathUrl ||
       util.format(CONSTANTS.ZKK79_HOST + CONSTANTS.ZKK79_PLAY_FORMAT,
         this.pInfo!.id,
         this.srcIndex + 1, this.episodeIndex + 1))
-      currentEpisode.videoUrl = rst.currentVideoUrl
+      this.currentEpisode.videoUrl = rst.currentVideoUrl
       if (!!rst.nextPathUrl) {
         this.episodes!.list[this.srcIndex].episodes![this.episodeIndex+1].pathUrl = rst.nextPathUrl
       }
     }
-    this.player!.play(currentEpisode.videoUrl)
+    this.player!.play(this.currentEpisode.videoUrl)
   }
 
   changeOrientation() {
@@ -276,6 +312,7 @@ struct VideoPlay {
                     .aspectRatio(1)
                   Text("1k")
                 }
+                .onClick(() => this.addDownloadTask())
                 .justifyContent(FlexAlign.Center)
 
                 // 分享

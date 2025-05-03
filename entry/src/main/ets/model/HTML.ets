@@ -1,5 +1,5 @@
 import { Tag, TagPosition } from '../types'
-import PromptException from './PromptException'
+import PromptAbleException from './PromptableException'
 
 export default class HTML {
   private html: string
@@ -155,7 +155,7 @@ export default class HTML {
       }
     }
     if (stack.length !== 1) {
-      throw new PromptException(-10001, "网址解析出错")
+      throw new PromptAbleException(-10001)
     }
     return stack.pop()
   }

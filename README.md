@@ -1,2 +1,7 @@
-#### 端云一体化开发在线文档：
-https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/agc-harmonyos-clouddev-view-0000001700053733-V5
+#### 这个作者很懒，什么都没留下...
+#### PromptAbleException错误码
+|    错误码 | 说明       |
+|-------:|:---------|
+| -10001 | 网址解析错误   |
+| -10002 | 加入下载任务错误 |
+| -10003 | 下载错误     |

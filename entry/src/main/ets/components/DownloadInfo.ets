@@ -1,8 +1,10 @@
 import DownloadInfoClass from "../model/DownloadInfoClass"
+import { DownloadTaskClass } from "../model/DownloadTaskClass"
 
 @Component
 export default struct DownloadInfo {
   @ObjectLink info: DownloadInfoClass
+  onExpand?: (list: DownloadTaskClass[]) => void
 
   build() {
     Row() {
@@ -12,10 +14,14 @@ export default struct DownloadInfo {
         .borderRadius(10)
 
       Column() {
-        Text(this.info.filename)
+        Text(this.info.name)
         Progress({
-          total: this.info.total,
-          value: this.info.size
+          total: 100,
+          value: 100
+        })
+        Text("来源" + this.info.source)
+        Button("展开").onClick(() => {
+          this.onExpand?.(this.info.taskList)
         })
       }
     }

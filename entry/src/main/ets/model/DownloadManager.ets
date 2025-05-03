@@ -1,43 +1,41 @@
-import { util } from '@kit.ArkTS';
 import { http } from "@kit.NetworkKit"
 import { Context } from '@kit.AbilityKit';
 import { fileIo } from '@kit.CoreFileKit';
+import { DownloadTaskClass } from "./DownloadTaskClass";
+import PromptAbleException from "./PromptableException";
+import CONSTANTS from "../common/Constants";
 
-interface DownloadTask {
-  id: string;
-  url: string;
-  file: string;
-  source: string;
+interface DownloadTaskWithProgress {
+  task: DownloadTaskClass
+  onTotal: OnProgressCallBack
+  onProgress: OnProgressCallBack
 }
 
-interface ReusableHttp {
-  id: number;
-  state: "idle" | "running";
-  instance: http.HttpRequest;
-  file?: fileIo.File;
+interface DownloadStream {
+  http: http.HttpRequest,
+  file: fileIo.File
 }
+
+type OnProgressCallBack = (value: number) => void
 
 export default class DownloadManager {
-  private httpPool: HttpReusePool
+  private httpScheduler: HttpScheduler
   private maxDownCount: number = 3
-  private taskList: DownloadTask[]
-  private pgObservers: Array<(size: number, total: number) => void>
+  private taskList: DownloadTaskWithProgress[]
 
-  private constructor(context: Context, progressObserver: Array<(size: number, total: number) => void>) {
+  private constructor(context: Context) {
     this.taskList = []
-    this.httpPool = new HttpReusePool(this.maxDownCount, context)
-    this.httpPool.onFinish = () => {
+    this.httpScheduler = new HttpScheduler(this.maxDownCount, context)
+    this.httpScheduler.onFinish = () => {
       this.checkTask()
     }
-    this.pgObservers = progressObserver
-    this.httpPool.onProgress = this.pgObservers
   }
 
   private static INSTANCE: DownloadManager
 
-  static getInstance(context: Context, listeners: Array<(size: number, total: number) => void>) {
+  static getInstance(context: Context) {
     if (!DownloadManager.INSTANCE) {
-      DownloadManager.INSTANCE = new DownloadManager(context, listeners)
+      DownloadManager.INSTANCE = new DownloadManager(context)
     }
     return DownloadManager.INSTANCE
   }
@@ -53,78 +51,99 @@ export default class DownloadManager {
 
   private checkTask() {
     const taskCount = this.taskList.length
-    const idleCount = this.httpPool.idleCount
+    const idleCount = this.httpScheduler.idleCount
     if (taskCount > 0 && idleCount > 0) {
       for (let i = 0; i < idleCount; i++) {
         const task = this.taskList.pop()
         if (!task) {
           return
         }
-        this.httpPool.exec(task)
+        this.httpScheduler.exec(task)
       }
     }
   }
 
-  addTask(url: string, file: string, source: string) {
-    this.taskList.push({
-      id: util.generateRandomUUID(),
-      url: url,
-      file: file,
-      source: source
-    })
-    this.checkTask()
+  addTask(task: DownloadTaskClass, onTotal: OnProgressCallBack, onProgress: OnProgressCallBack) {
+    if (!this.taskList.find(val => val.task.id === task.id)) {
+      this.taskList.push({
+        task, onTotal, onProgress
+      })
+      this.checkTask()
+      return () => {
+        this.httpScheduler.stopRequest(task)
+      }
+    } else {
+      throw new PromptAbleException(-10002, "已在队列中")
+    }
   }
 }
 
-class HttpReusePool {
-  private list: ReusableHttp[]
+class HttpScheduler {
+  private map = new Map<string, DownloadStream>()
+  private maxCount: number
+  private count: number = 0
   private savePath: string
   onFinish?: () => void
-  onProgress?: Array<(size: number, total: number) => void>
 
   constructor(count: number, context: Context) {
     this.savePath = context.filesDir
-    this.list = Array.from<undefined, ReusableHttp>({
-      length: count
-    }, (_, index) => {
-      const _http: ReusableHttp = {
-        id: index,
-        state: "idle",
-        instance: http.createHttp()
-      }
-      _http.instance.on("dataReceiveProgress", (data) => {
-        this.onProgress?.[_http.id](data.receiveSize, data.totalSize)
-      })
-      _http.instance.on("dataEnd", () => {
-        _http.state = "idle"
-        _http.instance.off("dataReceive")
-        if (_http.file) {
-          fileIo.close(_http.file.fd)
-        }
-        this.onFinish?.()
-      })
-      return _http
-    })
+    this.maxCount = count
   }
 
   get idleCount(): number {
-    return this.list.filter((val) => val.state === 'idle').length
+    return this.maxCount - this.count
   }
 
-  exec(task: DownloadTask): boolean {
-    for (let h of this.list) {
-      if (h.state === "idle") {
-        h.state = "running"
-        h.file = fileIo.openSync(`${this.savePath}/${task.file}`, fileIo.OpenMode.APPEND || fileIo.OpenMode.CREATE)
-        h.instance.on("dataReceive", chunk => {
-          fileIo.writeSync(h.file!.fd, chunk)
-        })
-        h.instance.requestInStream(task.url, {
-          method: http.RequestMethod.GET
-        })
-        return true
-      }
+  stopRequest(task: DownloadTaskClass) {
+    if (this.map.has(task.id)) {
+      const streams = this.map.get(task.id)!
+      streams.http.off("dataReceive")
+      streams.http.off("headersReceive")
+      streams.http.off("dataEnd")
+      fileIo.close(streams.file.fd)
+      this.onFinish?.()
+      this.count--
+      streams.http.destroy()
+      this.map.delete(task.id)
     }
-    return false
+  }
+
+  exec(task: DownloadTaskWithProgress): http.HttpRequest | null {
+    if (this.map.has(task.task.id)) {
+      throw new PromptAbleException(-10003, '任务正在下载中')
+    }
+    if (this.idleCount > 0) {
+      this.count++
+      const httpReq = http.createHttp();
+      const file =
+        fileIo.openSync(`${this.savePath}/${task.task.fileName}`, fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.CREATE)
+      httpReq.on("headersReceive", (headers: object) => {
+        const total: number = Number(headers["content-range"]?.split("/")?.[1])
+        if (!isNaN(total)) {
+          task.onTotal(total)
+          httpReq.off("headersReceive")
+        } else {
+          throw new PromptAbleException(-10003, `${task.task.name}-${task.task.srcName} 不支持断点续传`)
+        }
+      })
+      httpReq.on("dataReceive", chunk => {
+        fileIo.writeSync(file.fd, chunk, {
+          offset: task.task.progress
+        })
+        task.onProgress(task.task.progress + chunk.byteLength)
+      })
+      httpReq.on("dataEnd", () => {
+        this.stopRequest(task.task)
+      })
+      httpReq.requestInStream(task.task.url, {
+        method: http.RequestMethod.GET,
+        header: {
+          "Range": `bytes=${task.task.progress}-`
+        }
+      }).catch(CONSTANTS.EMPTY_FUNCTION)
+      this.map.set(task.task.id, { http: httpReq, file: file })
+      return httpReq
+    }
+    return null
   }
 }

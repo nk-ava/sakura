@@ -1,6 +1,6 @@
 import { hilog } from '@kit.PerformanceAnalysisKit'
 import HTML from '../model/HTML'
-import PromptException from '../model/PromptException'
+import PromptAbleException from '../model/PromptableException'
 import { Episode, EpisodeInfo, Tag, VideoSrc, ZDVideo, ZPVideo } from '../types'
 import { buffer, util } from '@kit.ArkTS'
 import CryptoJS from "@ohos/crypto-js"
@@ -20,7 +20,7 @@ export namespace AnalysisWebUtil {
      * @param page 页数
      * @returns 搜索结果列表
      */
-    static async searchPage(key: string, page: number = 1): Promise<ZPVideo[]> {
+    static async searchPage(key: string, page: number = 1): Promise<ZPVideoClass[]> {
       const list: ZPVideoClass[] = []
       try {
         const html = (await _http.request(util.format(CONSTANTS.ZKK79_HOST + CONSTANTS.ZKK79_SEARCH_FORMAT, key,
@@ -88,7 +88,7 @@ export namespace AnalysisWebUtil {
         }
       } catch (err) {
         hilog.error(0x0000, "zkk79.detailPage", "%{public}s:\n%{public}s", (err as Error).message, (err as Error).stack)
-        throw new PromptException(-10001, "网址解析出错")
+        throw new PromptAbleException(-10001)
       }
     }
 
