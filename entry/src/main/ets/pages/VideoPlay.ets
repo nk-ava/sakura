@@ -1,15 +1,18 @@
 import ZPVideoClass from '../model/ZPVideoClass';
-import { promptAction, router, window } from '@kit.ArkUI';
+import { promptAction, Router, window } from '@kit.ArkUI';
 import EmptyComponent from '../components/EmptyComponent';
 import { AnalysisWebUtil } from '../utils/AnalysisWebUilt';
 import { util } from '@kit.ArkTS';
 import CONSTANTS from '../common/Constants';
 import VideoPlayer from '../model/VideoPlayer';
-import { AvoidRect, Episode, VideoSize, ZDVideo } from '../types';
+import { AvoidRect, DownloadStatus, Episode, VideoPlayRouterOption, VideoSize, ZDVideo, ZPEpisode } from '../types';
 import { TimeUtil } from '../utils/TimeUtil';
-import { getPreferences } from '../model/PreferencesStore';
 import PromptAbleException from '../model/PromptableException';
 import { DownloadTaskClass } from '../model/DownloadTaskClass';
+import { pasteboard } from '@kit.BasicServicesKit';
+import { fileIo } from '@kit.CoreFileKit';
+import { common } from '@kit.AbilityKit';
+import { PreferencesStore } from '../model/PreferencesStore';
 
 @Entry
 @Component
@@ -25,6 +28,8 @@ struct VideoPlay {
   @State isPlaying: boolean = true
   @State fullScreen: boolean = false
   @State ratio: number = 1.77
+  private offlineFile?: fileIo.File
+  private router: Router = this.getUIContext().getRouter();
   private mainWin?: window.Window
   private winWidth: number = 0 // px
   private initial: boolean = false
@@ -33,28 +38,36 @@ struct VideoPlay {
   private player?: VideoPlayer
   private ctrl: XComponentController = new XComponentController()
   private currentEpisode?: Episode
+  private systemPasteBoard?: pasteboard.SystemPasteboard
+  private context: common.UIAbilityContext = this.getUIContext().getHostContext() as common.UIAbilityContext;
+  private downloadStore = new PreferencesStore(this.context, 'download_task');
 
   async aboutToAppear() {
-    const param = router.getParams()
-    if (param) {
-      this.pInfo = param as ZPVideoClass
-      this.episodes =
-        await AnalysisWebUtil.zkk79.detailPage(this.pInfo.id,
-          util.format(CONSTANTS.ZKK79_HOST + CONSTANTS.ZKK79_DETAIL_FORMAT, this.pInfo.id))
-      this.player = await VideoPlayer.new()
-      this.player.onSize = (size: VideoSize) => {
-        this.ratio = size.width / size.height
+    const param = this.router.getParams() as VideoPlayRouterOption
+    const sourceId = param.onlineInfo?.id ?? param.offlineInfo?.sourceId;
+    if (sourceId) {
+      this.pInfo = param.offlineInfo ? this.recoveryPInfo(param.offlineInfo) : param.onlineInfo;
+      if (param.offlineInfo) {
+        const offlineList = this.downloadStore.getAllListSync<DownloadTaskClass>().filter(item => item.source ===
+        param.offlineInfo!.source && item.sourceId === param.offlineInfo!.sourceId &&
+          item.status === DownloadStatus.COMPLETED);
+        this.episodes = {
+          id: sourceId,
+          list: [{
+            name: param.offlineInfo.source,
+            episodes: offlineList.map<Episode>(item => ({
+              name: item.srcName,
+              videoUrl: `file://${item.fileName}`
+            }))
+          }]
+        }
+        this.episodeIndex = offlineList.findIndex(item => item.srcName === param.offlineInfo!.srcName)
+      } else {
+        this.episodes =
+          await AnalysisWebUtil.zkk79.detailPage(sourceId,
+            util.format(CONSTANTS.ZKK79_HOST + CONSTANTS.ZKK79_DETAIL_FORMAT, sourceId))
       }
-      this.player.onDuration = (duration: number) => {
-        this.total = duration
-      }
-      this.player.onProgress = (time: number) => {
-        this.current = time
-      }
-      this.player.onStartPlay = () => {
-        this.loading = false
-      }
-      this.initial = true
+      await this.initPlayer();
       this.playVideo()
     }
     window.getLastWindow(getContext()).then(win => {
@@ -66,13 +79,36 @@ struct VideoPlay {
     })
   }
 
+  recoveryPInfo(info: DownloadTaskClass): ZPVideoClass {
+    return new ZPVideoClass(info.sourceId, info.name, '', info.preview, '', '', '', '', '', '');
+  }
+
+  /**
+   * 初始化播放器、设置回调
+   */
+  async initPlayer() {
+    this.player = await VideoPlayer.new()
+    this.player.onSize = (size: VideoSize) => {
+      this.ratio = size.width / size.height
+    }
+    this.player.onDuration = (duration: number) => {
+      this.total = duration
+    }
+    this.player.onProgress = (time: number) => {
+      this.current = time
+    }
+    this.player.onStartPlay = () => {
+      this.loading = false
+    }
+    this.initial = true
+  }
+
   addDownloadTask() {
     if (!this.currentEpisode?.videoUrl) {
       promptAction.showToast({ message: '正在加紧解析视频中，请稍后' })
       return
     }
-    const preference = getPreferences(getContext(), "download_task");
-    preference.s.getAll((err, all) => {
+    this.downloadStore.s.getAll((err, all) => {
       if (err) {
         throw new PromptAbleException(-10002)
       }
@@ -82,10 +118,10 @@ struct VideoPlay {
           val.srcName === this.currentEpisode?.name
       }) === -1) {
         const index = Object.keys(all)?.length || 0
-        preference.s.put(String(index),
+        this.downloadStore.s.put(String(index),
           new DownloadTaskClass(this.pInfo!.title, this.pInfo!.preview, this.pInfo!.source, this.pInfo!.id,
             this.currentEpisode!.videoUrl, this.currentEpisode?.name || `第${this.episodeIndex + 1}集`))
-        preference.s.flush(() => {
+        this.downloadStore.s.flush(() => {
           promptAction.showToast({
             message: "已加入下载任务"
           })
@@ -106,6 +142,9 @@ struct VideoPlay {
     if (!this.player!.sfID) {
       this.player!.setSurfaceID(this.ctrl.getXComponentSurfaceId())
     }
+    if (this.offlineFile) {
+      fileIo.closeSync(this.offlineFile);
+    }
     this.currentEpisode = this.episodes!.list[this.srcIndex].episodes![this.episodeIndex]
     if (!this.currentEpisode.videoUrl) {
       const rst = await AnalysisWebUtil.zkk79.playPage(this.currentEpisode.pathUrl ||
@@ -113,9 +152,14 @@ struct VideoPlay {
         this.pInfo!.id,
         this.srcIndex + 1, this.episodeIndex + 1))
       this.currentEpisode.videoUrl = rst.currentVideoUrl
-      if (!!rst.nextPathUrl) {
-        this.episodes!.list[this.srcIndex].episodes![this.episodeIndex+1].pathUrl = rst.nextPathUrl
+      const nextEpisode = this.episodes!.list[this.srcIndex].episodes![this.episodeIndex+1];
+      if (!!rst.nextPathUrl && nextEpisode) {
+        nextEpisode.pathUrl = rst.nextPathUrl;
       }
+    } else if (this.currentEpisode.videoUrl.startsWith("file://")) {
+      const fileName = this.currentEpisode.videoUrl.replace("file://", '');
+      this.offlineFile = fileIo.openSync(`${this.context.filesDir}/${fileName}`);
+      this.currentEpisode.videoUrl = `fd://${this.offlineFile.fd}`;
     }
     this.player!.play(this.currentEpisode.videoUrl)
   }
@@ -133,11 +177,24 @@ struct VideoPlay {
     })
   }
 
+  addPastBoard(text: string) {
+    const data = pasteboard.createData("text/plain", text);
+    if (!this.systemPasteBoard) {
+      this.systemPasteBoard = pasteboard.getSystemPasteboard()
+    }
+    this.systemPasteBoard.setData(data).then(() => {
+      promptAction.showToast({ message: "已复制到剪贴板" })
+    })
+  }
+
   aboutToDisappear(): void {
     this.mainWin!.setWindowSystemBarProperties({
       statusBarContentColor: "#000000"
     })
-    this.player!.release()
+    this.player?.release();
+    if (this.offlineFile) {
+      fileIo.close(this.offlineFile);
+    }
   }
 
   onBackPress(): boolean | void {
@@ -173,7 +230,7 @@ struct VideoPlay {
                     if (this.fullScreen) {
                       this.changeOrientation()
                     } else {
-                      router.back()
+                      this.router.back()
                     }
                   })
               }
@@ -376,6 +433,14 @@ struct VideoPlay {
                 Image(this.pInfo.preview)
                   .width(100)
               }
+
+              Button('复制').onClick(() => {
+                if (!this.currentEpisode?.videoUrl) {
+                  promptAction.showToast({ message: '正在加紧解析视频中，请稍后' })
+                  return
+                }
+                this.addPastBoard(this.currentEpisode.videoUrl)
+              })
             }
             .padding({ left: 10, right: 10 })
             .backgroundColor(Color.White)

@@ -52,7 +52,7 @@ export namespace AnalysisWebUtil {
      * @param id 番剧名称的id
      * @param url 要解析的网址
      */
-    static async detailPage(id: number, url: string): Promise<ZDVideo> {
+    static async detailPage(id: string, url: string): Promise<ZDVideo> {
       try {
         const html = (await _http.request(url)).result as string
         const sli = html.match(/播放地址\s*<\/h3>\s*\n?\s*<ul class="nav nav-tabs active">[\s\S]*?<\/ul>/)![0]

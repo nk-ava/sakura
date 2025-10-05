@@ -1,16 +1,5 @@
 import { preferences } from '@kit.ArkData'
 
-const preferenceMap = new Map<string, PreferencesStore>()
-
-export function getPreferences(context: Context, name: string): PreferencesStore {
-  if (!preferenceMap.has(name)) {
-    const instance = new PreferencesStore(context, name)
-    preferenceMap.set(name, instance)
-    return instance
-  }
-  return preferenceMap.get(name)!
-}
-
 export class PreferencesStore {
   private store: preferences.Preferences
 
@@ -22,5 +11,16 @@ export class PreferencesStore {
 
   get s(): preferences.Preferences {
     return this.store
+  }
+
+  getAllList<T>() {
+    return this.s.getAll().then((all) => {
+      return Object.values(all) as T[]
+    })
+  }
+
+  getAllListSync<T>() {
+    const obj = this.s.getAllSync();
+    return Object.values(obj) as T[];
   }
 }

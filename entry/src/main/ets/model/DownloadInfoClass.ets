@@ -5,13 +5,13 @@ import { DownloadTaskClass } from "./DownloadTaskClass"
  */
 @Observed
 export default class DownloadInfoClass {
-  /* 预览图 */
+  /*& 预览图 */
   preview: string
-  /* 来源 */
+  /** 来源 */
   source: string
-  /* 资源Id */
+  /** 资源Id */
   sourceId: string
-  /* 番名 */
+  /** 番名 */
   name: string
 
   taskList: DownloadTaskClass[]

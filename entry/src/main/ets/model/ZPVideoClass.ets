@@ -3,7 +3,7 @@
  */
 @Observed
 export default class ZPVideoClass {
-  id: number
+  id: string
   title: string
   alias: string
   preview: string
@@ -15,9 +15,9 @@ export default class ZPVideoClass {
   badge: string
   source: string = "zkk79"
 
-  constructor(id: number, title: string, alias: string, preview: string, type: string, category: string, area: string,
+  constructor(id: number | string, title: string, alias: string, preview: string, type: string, category: string, area: string,
     time: string, summary: string, badge: string) {
-    this.id = id;
+    this.id = String(id);
     this.title = title;
     this.alias = alias;
     this.preview = preview;

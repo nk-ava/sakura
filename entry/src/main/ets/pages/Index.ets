@@ -152,53 +152,55 @@ struct Index {
 
       if (this.showRst) {
         Column() {
-          Row() {
-            Text("搜索路径：")
-              .fontSize($r("app.float.default_font_size"))
-            List() {
-              ForEach(this.searchPath, (item: string, index) => {
-                this.builderPath(item, index)
-              })
+          if(this.showRst) {
+            Row() {
+              Text("搜索路径：")
+                .fontSize($r("app.float.default_font_size"))
+              List() {
+                ForEach(this.searchPath, (item: string, index) => {
+                  this.builderPath(item, index)
+                })
+              }
+              .scrollBar(BarState.Off)
+              .listDirection(Axis.Horizontal)
+              .layoutWeight(1)
             }
-            .scrollBar(BarState.Off)
-            .listDirection(Axis.Horizontal)
+            .margin({ bottom: 10 })
+            .height(this.scrollOffset.yOffset > 0 ? 0 : 30)
+            .animation({ duration: 150 })
+
+            Swiper(this.swiperCtrl) {
+              SakuraList({
+                space: 10,
+                scroller: this.listScr,
+                ended: this.ended,
+                loadMore: () => {
+                  this.loadMore()
+                },
+                refresh: (): Promise<void> => {
+                  return this.search(false);
+                },
+                scrollerOffset: this.scrollOffset,
+                showLoadMore: this.total !== 0
+              }) {
+                LazyForEach(this.searchRst, (item: ZPVideoClass) => {
+                  ListItem() {
+                    VideoDescription({
+                      info: item
+                    })
+                  }
+                }, (item: ZPVideoClass) => item.id.toString())
+              }
+            }
+            .onChange(index => {
+              this.activeIndex = index
+            })
+            .indicator(false)
             .layoutWeight(1)
-          }
-          .margin({ bottom: 10 })
-          .height(this.scrollOffset.yOffset > 0 ? 0 : 30)
-          .animation({ duration: 150 })
 
-          Swiper(this.swiperCtrl) {
-            SakuraList({
-              space: 10,
-              scroller: this.listScr,
-              ended: this.ended,
-              loadMore: () => {
-                this.loadMore()
-              },
-              refresh: (): Promise<void> => {
-                return this.search(false);
-              },
-              scrollerOffset: this.scrollOffset,
-              showLoadMore: this.total !== 0
-            }) {
-              LazyForEach(this.searchRst, (item: ZPVideoClass) => {
-                ListItem() {
-                  VideoDescription({
-                    info: item
-                  })
-                }
-              }, (item: ZPVideoClass) => item.id.toString())
-            }
+            Empty({ visible: this.total === 0 })
+            Loading({ loading: this.loading })
           }
-          .onChange(index => {
-            this.activeIndex = index
-          })
-          .indicator(false)
-          .layoutWeight(1)
-
-          Empty({ visible: this.total === 0 })
-          Loading({ loading: this.loading })
         }
         .transition(TransitionEffect.move(TransitionEdge.BOTTOM).animation({ duration: 300 }))
         .layoutWeight(1)

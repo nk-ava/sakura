@@ -51,7 +51,9 @@ export default struct VideoDescription {
         .onClick(() => {
           router.pushUrl({
             url: "pages/VideoPlay",
-            params: this.info
+            params: {
+              onlineInfo: this.info
+            }
           })
         })
       }

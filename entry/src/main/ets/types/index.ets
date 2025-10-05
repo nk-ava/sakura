@@ -1,3 +1,6 @@
+import { DownloadTaskClass } from "../model/DownloadTaskClass";
+import ZPVideoClass from "../model/ZPVideoClass";
+
 /** 避让区域接口 */
 export interface AvoidRect {
   topHeight: number;
@@ -20,7 +23,7 @@ export interface ZPVideo {
 
 /** zkk79 详细视频信息接口 */
 export interface ZDVideo {
-  id: number;
+  id: string;
   list: VideoSrc[];
 }
 
@@ -35,6 +38,10 @@ export interface Episode {
   name: string;
   videoUrl?: string;
   pathUrl?: string;
+}
+
+export interface ZPEpisode extends Episode {
+  id: string;
 }
 
 type HTMLInner = Tag | string
@@ -64,3 +71,17 @@ export interface VideoSize {
 }
 
 export type NonNull = number | string | boolean | object
+
+export enum DownloadStatus {
+  /** 正在下载 */
+  DOWNLOADING = 1,
+  /** 等待下载 */
+  AWAIT_DOWNLOADING = 2,
+  /** 已完成 */
+  COMPLETED = 3
+}
+
+export interface VideoPlayRouterOption {
+  onlineInfo?: ZPVideoClass;
+  offlineInfo?: DownloadTaskClass;
+}

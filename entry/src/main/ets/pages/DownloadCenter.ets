@@ -5,7 +5,7 @@ import SakuraList from '../components/SakuraList'
 import BasicDataSource from '../model/BasicDataSource'
 import DownloadInfoClass from '../model/DownloadInfoClass'
 import { DownloadTaskClass } from '../model/DownloadTaskClass'
-import { getPreferences, PreferencesStore } from '../model/PreferencesStore'
+import { PreferencesStore } from '../model/PreferencesStore'
 import { AvoidRect } from '../types'
 
 @Entry
@@ -15,7 +15,7 @@ struct DownloadCenter {
   @State activeIndex: number = 0
   @State loading: boolean = true
   @State isExpand: boolean = false
-  private pfStore: PreferencesStore = getPreferences(getContext(), "download_task")
+  private pfStore: PreferencesStore = new PreferencesStore(getContext(), "download_task")
   private downStatusTab: string[] = ["全部", "正在下载", "等待下载", "已完成"]
   private taskList: BasicDataSource<DownloadInfoClass> = new BasicDataSource()
   private episodeList: BasicDataSource<DownloadTaskClass> = new BasicDataSource()
@@ -127,7 +127,10 @@ struct DownloadCenter {
             LazyForEach(this.episodeList, (task: DownloadTaskClass) => {
               ListItem() {
                 EpisodeInfo({
-                  info: task
+                  info: task,
+                  reFilter: () => {
+                    // TODO: 重新筛选
+                  }
                 })
               }
             }, (item: DownloadTaskClass) => item.id)
