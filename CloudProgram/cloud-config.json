@@ -1,0 +1,20 @@
+{
+  "appSelected": {
+    "appId": "5765880207855149945",
+    "appName": "sakura",
+    "deviceTypes": [
+      {
+        "appAdapters": "5",
+        "deviceType": 4
+      }
+    ],
+    "enableSites": "CN",
+    "installationFree": 0,
+    "packageType": 7,
+    "projectId": "388421841222391201",
+    "projectName": "sakuraProjects",
+    "siteId": "CN"
+  },
+  "teamId": "70086000333136888",
+  "uid": "70086000333136888"
+}

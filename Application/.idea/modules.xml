@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../CloudProgram/.idea/CloudProgram.iml" filepath="$PROJECT_DIR$/../CloudProgram/.idea/CloudProgram.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/cloud_objects.iml" filepath="$PROJECT_DIR$/.idea/modules/cloud_objects.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/common.iml" filepath="$PROJECT_DIR$/.idea/modules/common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/entry.iml" filepath="$PROJECT_DIR$/.idea/modules/entry.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/sakura.iml" filepath="$PROJECT_DIR$/.idea/modules/sakura.iml" />
+    </modules>
+  </component>
+</project>
